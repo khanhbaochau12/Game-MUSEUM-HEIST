@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Museum Heist</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Be+Vietnam+Pro:wght@500;700;900&family=Playfair+Display:wght@500;700;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold: #d4af37;
+      --gold-light: #ffd76a;
+      --gold-deep: #8b6f1f;
+      --bg-deep: #0a0a14;
+      --bg-mid: #14141f;
+      --bg-soft: #1f1f2e;
+      --red: #c43a3a;
+      --green: #4caf50;
+      --shadow-strong: 0 8px 32px rgba(0,0,0,0.65);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100vw; height: 100vh; overflow: hidden;
+      background: #000; color: #f5f0e6;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    #app { position: relative; width: 100vw; height: 100vh; }
+    canvas { display: block; }
+    .canvas-game { width: 100vw; height: 100vh; }
+
+    /* Vignette overlay over the whole game */
+    #vignette {
+      position: fixed; inset: 0; pointer-events: none; z-index: 5;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+    }
+
+    /* ======================== LOADING ======================== */
+    #loading-screen {
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a14 70%),
+        repeating-linear-gradient(45deg, rgba(212,175,55,0.02) 0 2px, transparent 2px 30px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 1000; color: #f5f0e6;
+    }
+    #loading-screen::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(circle at 25% 30%, rgba(212,175,55,0.08), transparent 40%),
+        radial-gradient(circle at 75% 70%, rgba(212,175,55,0.05), transparent 40%);
+      pointer-events: none;
+    }
+    .loading-emblem {
+      font-size: 72px; color: var(--gold); margin-bottom: 6px;
+      filter: drop-shadow(0 0 18px rgba(212,175,55,0.6));
+    }
+    #loading-screen h1 {
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-weight: 900;
+      font-size: 56px; letter-spacing: 8px; color: var(--gold);
+      text-shadow: 0 0 28px rgba(212,175,55,0.5), 0 4px 20px rgba(0,0,0,0.7);
+      margin-bottom: 8px;
+    }
+    #loading-screen .subtitle {
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-size: 14px; letter-spacing: 4px;
+      color: #aaa; margin-bottom: 36px; text-transform: uppercase;
+    }
+    #loading-bar-wrapper {
+      width: 360px; height: 8px; background: rgba(212,175,55,0.1);
+      border-radius: 99px; overflow: hidden;
+      box-shadow: inset 0 1px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(212,175,55,0.25);
+    }
+    #loading-bar {
+      width: 0%; height: 100%;
+      background: linear-gradient(90deg, var(--gold-deep), var(--gold), var(--gold-light));
+      box-shadow: 0 0 12px var(--gold);
+      transition: width 0.25s ease-out;
+    }
+    #loading-text {
+      margin-top: 12px; font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; color: var(--gold-light); letter-spacing: 2px;
+    }
+    #loading-screen.hidden { animation: fadeOut 0.6s forwards; }
+    @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+
+    /* ======================== HUD ======================== */
+    #hud {
+      position: fixed; inset: 0; pointer-events: none; z-index: 10;
+    }
+
+    .hud-card {
+      position: absolute; pointer-events: none;
+      background:
+        linear-gradient(135deg, rgba(20,20,31,0.85), rgba(10,10,20,0.85));
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(212,175,55,0.35);
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    #money-display {
+      top: 22px; left: 22px;
+      padding: 10px 18px;
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-weight: 700;
+      font-size: 22px; color: var(--gold);
+      text-shadow: 0 0 12px rgba(212,175,55,0.5);
+      display: flex; align-items: center; gap: 8px;
+    }
+    #money-display .icon { font-size: 24px; filter: drop-shadow(0 0 6px var(--gold)); }
+    #money-display #money { font-family: 'JetBrains Mono', monospace; min-width: 30px; }
+
+    #timer-display {
+      top: 22px; right: 22px;
+      padding: 10px 18px;
+      font-family: 'JetBrains Mono', monospace; font-weight: 700;
+      font-size: 26px; color: #ff8a8a;
+      display: flex; align-items: center; gap: 8px;
+    }
+    #timer-display .icon { font-size: 22px; }
+    #timer-display.hidden { display: none; }
+    #timer-display.urgent {
+      color: #ff3030; border-color: rgba(255,48,48,0.7);
+      animation: timerPulse 0.6s infinite;
+    }
+    @keyframes timerPulse {
+      0%,100% { transform: scale(1); box-shadow: 0 4px 24px rgba(255,48,48,0.3); }
+      50% { transform: scale(1.05); box-shadow: 0 4px 32px rgba(255,48,48,0.6); }
+    }
+
+    #interact-hint {
+      position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+      pointer-events: none;
+      background:
+        linear-gradient(135deg, rgba(20,20,31,0.92), rgba(10,10,20,0.92));
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(212,175,55,0.5);
+      color: #f5f0e6; padding: 12px 22px; border-radius: 10px;
+      font-size: 15px; font-weight: 500;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 0 32px rgba(212,175,55,0.15);
+      animation: hintPop 0.3s ease-out;
+    }
+    @keyframes hintPop { from { transform: translateX(-50%) translateY(8px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+    #interact-hint.hidden { display: none; }
+    #interact-hint .key {
+      display: inline-block;
+      background: linear-gradient(180deg, var(--gold-light), var(--gold));
+      color: #1a1a2e; padding: 3px 10px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px;
+      margin: 0 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 -2px 0 rgba(0,0,0,0.15);
+    }
+    #interact-hint b { color: var(--gold-light); }
+
+    #crosshair {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 18px; height: 18px;
+      background:
+        radial-gradient(circle at center, transparent 35%, rgba(255,255,255,0.85) 35% 45%, transparent 45%);
+      filter: drop-shadow(0 0 2px rgba(0,0,0,0.9));
+    }
+
+    #controls-help {
+      bottom: 22px; left: 22px;
+      padding: 10px 14px; font-size: 11.5px; line-height: 1.7;
+      color: #c8c2b3; font-family: 'JetBrains Mono', monospace;
+    }
+    #controls-help b { color: var(--gold); }
+
+    /* Camera toolbar */
+    #camera-toolbar {
+      position: absolute; bottom: 22px; right: 22px;
+      pointer-events: auto;
+      background: linear-gradient(135deg, rgba(20,20,31,0.92), rgba(10,10,20,0.92));
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(212,175,55,0.35);
+      border-radius: 10px; padding: 14px 16px;
+      width: 280px; box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    }
+    #camera-toolbar h3 {
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-size: 13px; font-weight: 700;
+      letter-spacing: 2px; color: var(--gold); margin-bottom: 10px;
+      text-transform: uppercase; border-bottom: 1px solid rgba(212,175,55,0.2); padding-bottom: 6px;
+    }
+    #camera-toolbar .row { display: flex; align-items: center; margin: 8px 0; gap: 8px; }
+    #camera-toolbar label { width: 44px; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #aaa; }
+    #camera-toolbar input[type=range] {
+      flex: 1; -webkit-appearance: none; appearance: none;
+      height: 4px; background: rgba(212,175,55,0.15); border-radius: 99px; outline: none;
+    }
+    #camera-toolbar input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: linear-gradient(180deg, var(--gold-light), var(--gold));
+      cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      border: 1px solid var(--gold-deep);
+    }
+    #camera-toolbar input[type=range]::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--gold-deep);
+      background: var(--gold-light); cursor: pointer;
+    }
+    #camera-toolbar .val {
+      width: 44px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--gold-light);
+    }
+    #camera-toolbar button {
+      width: 100%; margin-top: 12px; padding: 8px; cursor: pointer;
+      background: linear-gradient(180deg, var(--gold-light), var(--gold));
+      color: #1a1a2e; border: 1px solid var(--gold-deep); border-radius: 6px;
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-weight: 700; font-size: 12px;
+      letter-spacing: 2px; text-transform: uppercase;
+      transition: all 0.15s;
+    }
+    #camera-toolbar button:hover {
+      filter: brightness(1.1); box-shadow: 0 0 16px rgba(212,175,55,0.5);
+    }
+
+    /* ======================== MINIGAME OVERLAY ======================== */
+    #minigame-overlay {
+      position: absolute; inset: 0; pointer-events: auto; z-index: 20; display: none;
+      cursor: default;
+      background:
+        radial-gradient(ellipse at center, rgba(0,0,0,0.65), rgba(0,0,0,0.92));
+      backdrop-filter: blur(2px);
+      animation: overlayFade 0.3s ease-out;
+    }
+    @keyframes overlayFade { from { opacity: 0; } to { opacity: 1; } }
+    #minigame-overlay.active { display: block; }
+
+    .minigame-panel {
+      position: absolute; left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      color: #f5f0e6;
+      background:
+        linear-gradient(180deg, rgba(28,28,42,0.97) 0%, rgba(14,14,22,0.97) 100%);
+      border: 1px solid rgba(212,175,55,0.5);
+      border-radius: 14px;
+      box-shadow:
+        0 24px 80px rgba(0,0,0,0.7),
+        0 0 60px rgba(212,175,55,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      pointer-events: auto;
+      box-sizing: border-box;
+      animation: panelIn 0.35s cubic-bezier(0.2,0.9,0.3,1.2);
+    }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translate(-50%, -45%) scale(0.95); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    .minigame-panel::-webkit-scrollbar { width: 8px; }
+    .minigame-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+    .minigame-panel::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.4); border-radius: 4px; }
+
+    .minigame-panel button,
+    .minigame-panel canvas,
+    .minigame-panel .shape-option,
+    .minigame-panel .texture-option,
+    .minigame-panel input { pointer-events: auto; }
+
+    /* Header bar inside panel */
+    .mg-header {
+      padding: 14px 22px 12px; border-bottom: 1px solid rgba(212,175,55,0.2);
+      background:
+        linear-gradient(180deg, rgba(212,175,55,0.06), transparent),
+        repeating-linear-gradient(90deg, transparent 0 60px, rgba(212,175,55,0.04) 60px 61px);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .minigame-title {
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-weight: 700;
+      font-size: 20px; letter-spacing: 3px; color: var(--gold);
+      text-align: center;
+      text-shadow: 0 0 18px rgba(212,175,55,0.4);
+    }
+    .minigame-instruction {
+      font-size: 12.5px; color: #cdc6b6; line-height: 1.55;
+      text-align: center; max-width: 700px; margin: 0 auto;
+    }
+    .minigame-instruction b { color: var(--gold-light); }
+
+    /* Timer bar at the top of the panel */
+    .mg-timer-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 22px; background: rgba(0,0,0,0.25); border-bottom: 1px solid rgba(212,175,55,0.12);
+    }
+    .mg-timer-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--gold-light);
+      letter-spacing: 2px; text-transform: uppercase;
+    }
+    .mg-timer-bar {
+      flex: 1; height: 8px; background: rgba(255,255,255,0.06);
+      border-radius: 99px; overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.6);
+    }
+    .mg-timer-fill {
+      height: 100%; width: 100%;
+      background: linear-gradient(90deg, var(--green) 0%, var(--gold) 60%, var(--red) 100%);
+      transform-origin: left;
+      transition: transform 0.1s linear, filter 0.2s;
+      box-shadow: 0 0 10px rgba(212,175,55,0.4);
+    }
+    .mg-timer-fill.urgent { animation: timerFlash 0.4s infinite; }
+    @keyframes timerFlash { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.6); } }
+    .mg-timer-text {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px;
+      color: #ff8a8a; min-width: 36px; text-align: right;
+    }
+
+    /* Body of panel */
+    .mg-body { padding: 16px 22px 18px; }
+
+    .minigame-button {
+      padding: 10px 24px; margin: 4px 6px; cursor: pointer;
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-size: 13px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      background: linear-gradient(180deg, var(--gold-light), var(--gold));
+      color: #1a1a2e; border: 1px solid var(--gold-deep); border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 -2px 0 rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.4);
+      transition: transform 0.1s, filter 0.15s, box-shadow 0.15s;
+    }
+    .minigame-button:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 22px rgba(212,175,55,0.5),
+                  inset 0 -2px 0 rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.4);
+      transform: translateY(-1px);
+    }
+    .minigame-button:active { transform: translateY(0); }
+    .minigame-button.secondary {
+      background: linear-gradient(180deg, #4a4a5e, #2a2a3e);
+      color: #f5f0e6; border-color: rgba(255,255,255,0.15);
+    }
+    .minigame-button.secondary:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
+
+    .flash-error { animation: flashError 0.5s; }
+    @keyframes flashError {
+      0%,100% { box-shadow:
+        0 24px 80px rgba(0,0,0,0.7),
+        0 0 60px rgba(212,175,55,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.06); }
+      50% { box-shadow:
+        0 24px 80px rgba(0,0,0,0.7),
+        0 0 80px rgba(255,40,40,0.6),
+        inset 0 0 0 2px rgba(255,80,80,0.6); }
+    }
+
+    /* Shape & texture options */
+    .texture-option, .shape-option {
+      display: inline-block; margin: 0; padding: 6px;
+      border: 2px solid rgba(255,255,255,0.08);
+      border-radius: 8px; cursor: pointer;
+      background: linear-gradient(135deg, rgba(40,40,55,0.8), rgba(20,20,30,0.8));
+      transition: all 0.18s ease-out;
+    }
+    .texture-option:hover, .shape-option:hover {
+      border-color: rgba(212,175,55,0.5);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 18px rgba(212,175,55,0.2);
+    }
+    .texture-option.selected, .shape-option.selected {
+      border-color: var(--gold);
+      background: linear-gradient(135deg, rgba(212,175,55,0.18), rgba(60,50,15,0.4));
+      box-shadow: 0 0 22px rgba(212,175,55,0.5), inset 0 0 12px rgba(212,175,55,0.15);
+    }
+    .texture-option canvas, .shape-option canvas {
+      display: block; width: 64px; height: 64px; border-radius: 4px;
+      background: #050510;
+    }
+    .texture-option .label, .shape-option .label {
+      font-size: 10.5px; text-align: center; margin-top: 5px;
+      color: #cdc6b6; font-weight: 500; letter-spacing: 1px;
+    }
+    .texture-option.selected .label, .shape-option.selected .label { color: var(--gold-light); }
+
+    .mg-section-title {
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-size: 12px; font-weight: 700;
+      letter-spacing: 2px; color: var(--gold-light);
+      margin-bottom: 8px; text-transform: uppercase;
+    }
+    .mg-canvas-frame {
+      position: relative; display: inline-block;
+      border-radius: 8px; overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(212,175,55,0.3);
+      background: #050510;
+    }
+    .mg-canvas-frame.target { box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 0 24px rgba(212,175,55,0.25), inset 0 0 0 2px var(--gold); }
+    .mg-canvas-frame.player { box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 0 18px rgba(136,221,255,0.25), inset 0 0 0 2px #88ddff; }
+    .mg-canvas-label {
+      position: absolute; top: 6px; left: 8px; font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      padding: 3px 8px; border-radius: 4px;
+      background: rgba(0,0,0,0.7); color: var(--gold-light);
+      backdrop-filter: blur(4px);
+      text-transform: uppercase;
+    }
+
+    /* ======================== GAME OVER ======================== */
+    #game-over {
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse at center, rgba(20,10,30,0.95) 0%, rgba(0,0,0,0.98) 70%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100; color: #fff; pointer-events: all;
+    }
+    #game-over.hidden { display: none; }
+    #game-over h1 {
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-weight: 900;
+      font-size: 80px; letter-spacing: 6px; margin-bottom: 20px;
+      text-align: center;
+    }
+    #game-over h1.escaped {
+      color: var(--gold);
+      text-shadow: 0 0 36px rgba(212,175,55,0.6);
+      animation: heroGlow 2s ease-in-out infinite;
+    }
+    #game-over h1.caught {
+      color: #ff5050;
+      text-shadow: 0 0 36px rgba(255,80,80,0.5);
+    }
+    @keyframes heroGlow {
+      0%,100% { filter: drop-shadow(0 0 12px rgba(212,175,55,0.4)); }
+      50% { filter: drop-shadow(0 0 28px rgba(212,175,55,0.8)); }
+    }
+    #game-over .summary {
+      font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-size: 28px; margin-bottom: 36px;
+      color: #ddd; letter-spacing: 2px;
+    }
+    #game-over .summary b { color: var(--gold-light); }
+    #game-over button {
+      padding: 14px 40px; font-family: 'Playfair Display', 'Cinzel', 'Be Vietnam Pro', serif; font-size: 18px; font-weight: 700;
+      letter-spacing: 4px; text-transform: uppercase;
+      cursor: pointer; background: linear-gradient(180deg, var(--gold-light), var(--gold));
+      color: #1a1a2e; border: 1px solid var(--gold-deep); border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 0 rgba(0,0,0,0.2);
+      transition: all 0.15s;
+    }
+    #game-over button:hover {
+      transform: translateY(-2px); filter: brightness(1.1);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.6), 0 0 28px rgba(212,175,55,0.5);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="loading-screen">
+      <div class="loading-emblem">⚜</div>
+      <h1>MUSEUM HEIST</h1>
+      <div class="subtitle">— Đang chuẩn bị cuộc trộm hoàn hảo —</div>
+      <div id="loading-bar-wrapper"><div id="loading-bar"></div></div>
+      <div id="loading-text">0%</div>
+    </div>
+
+    <div id="hud">
+      <div id="money-display" class="hud-card"><span class="icon">💰</span><span>$<span id="money">0</span></span></div>
+      <div id="timer-display" class="hud-card hidden"><span class="icon">⏱</span><span><span id="timer">30</span>s</span></div>
+      <div id="interact-hint" class="hidden">Nhấn <span class="key">E</span> để trộm vật phẩm</div>
+      <div id="crosshair"></div>
+      <div id="controls-help" class="hud-card">
+        <b>WASD</b> Di chuyển · <b>Shift</b> Chạy · <b>Chuột</b> Nhìn<br>
+        <b>V</b> Đổi góc nhìn · <b>E</b> Tương tác · <b>Esc</b> Mở chuột
+      </div>
+      <div id="camera-toolbar">
+        <h3>📷 Camera Settings</h3>
+        <div class="row"><label>FOV</label><input type="range" id="cam-fov" min="30" max="120" value="75"><span class="val" id="cam-fov-val">75</span></div>
+        <div class="row"><label>Near</label><input type="range" id="cam-near" min="0.01" max="1" step="0.01" value="0.1"><span class="val" id="cam-near-val">0.10</span></div>
+        <div class="row"><label>Far</label><input type="range" id="cam-far" min="50" max="500" value="300"><span class="val" id="cam-far-val">300</span></div>
+        <button id="cam-reset">Reset</button>
+      </div>
+      <div id="minigame-overlay"></div>
+    </div>
+
+    <div id="vignette"></div>
+
+    <div id="game-over" class="hidden">
+      <h1 id="game-over-title"></h1>
+      <div class="summary" id="game-over-summary"></div>
+      <button onclick="location.reload()">Chơi lại</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
