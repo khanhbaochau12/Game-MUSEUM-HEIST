@@ -1,10 +1,12 @@
 # Museum Heist
 
-Game 3D mô phỏng kẻ trộm trong viện bảo tàng, xây dựng bằng Three.js + Vite theo đặc tả `CLAUDE.md`.
+Game 3D chạy trên trình duyệt, người chơi đóng vai kẻ trộm trong bảo tàng cổ điển. Đi qua sân vườn (đài phun nước, cây, tượng, cột đèn), bước vào bảo tàng có 8 cổ vật trên bệ kính dưới đèn spotlight 3 chiều, mỗi cổ vật yêu cầu hoàn thành 2–4 minigame để trộm thành công, rồi chạy ra cửa thoát.
+Tech stack: Three.js r160 + Vite (vanilla JS, không framework), procedural texture (không cần file ảnh ngoài).
 
 ## Chạy dự án
 
 ```bash
+cd C:\Users\Admin\IdeaProjects\GAME_MUSEUM
 npm install
 npm run dev
 ```
@@ -34,7 +36,16 @@ Mở trình duyệt tại `http://localhost:3000`.
 
 ## Cấu trúc
 
-Xem `CLAUDE.md` cho chi tiết kiến trúc.
+src/
+├── core/         # Game.js, AssetLoader, InputManager
+├── world/        # Museum, Exterior, Interior, Fountain
+├── objects/      # primitives, ExhibitItem, DisplayStand, TreeGroup
+├── player/       # Player + FirstPersonCamera + ThirdPersonCamera
+├── npc/          # Visitor (NPC tuần tra)
+├── lighting/     # LightingSystem (chandeliers, spotlights, downlights)
+├── minigames/    # MinigameManager + Transform + Texture
+├── ui/           # HUD, MinigameUI, CameraToolbar
+└── utils/        # MathUtils, CollisionUtils
 
 ## Asset
 
