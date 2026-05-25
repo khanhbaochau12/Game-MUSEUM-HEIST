@@ -166,7 +166,7 @@ export class TextureMinigame {
             <div class="mg-section-title" style="color:#88ddff; margin-top:14px;">👁 Xem trước</div>
             <div class="mg-canvas-frame player">
               <span class="mg-canvas-label" style="color:#88ddff;">PREVIEW</span>
-              <canvas id="tex-preview" width="200" height="130" style="display:block;"></canvas>
+              <canvas id="tex-preview" width="200" height="200" style="display:block;"></canvas>
             </div>
           </div>
           <div style="flex:1; min-width:280px;">
@@ -200,8 +200,8 @@ export class TextureMinigame {
 
     this._buildShapeOptions()
     this._buildTextureOptions()
-    this._draw2DTarget()
-    this._draw2DPreview()
+    this._draw3DTarget()
+    this._draw3DPreview()
   }
 
   _buildShapeOptions() {
@@ -218,10 +218,16 @@ export class TextureMinigame {
       this.$shapesCol.appendChild(opt)
       draw2DShapeThumb(c, shape.id, '#cccccc')
       opt.addEventListener('click', () => {
-        this.$shapesCol.querySelectorAll('.shape-option').forEach(el => el.classList.remove('selected'))
-        opt.classList.add('selected')
-        this.selectedShape = shape
-        this._draw2DPreview(); this._updateStatus()
+        if (this.selectedShape && this.selectedShape.id === shape.id) {
+          // Hủy chọn
+          opt.classList.remove('selected')
+          this.selectedShape = null
+        } else {
+          this.$shapesCol.querySelectorAll('.shape-option').forEach(el => el.classList.remove('selected'))
+          opt.classList.add('selected')
+          this.selectedShape = shape
+        }
+        this._draw3DPreview(); this._updateStatus()
       })
     }
   }
@@ -240,10 +246,15 @@ export class TextureMinigame {
       this.$texturesCol.appendChild(opt)
       this._drawTextureThumb(c, t.id)
       opt.addEventListener('click', () => {
-        this.$texturesCol.querySelectorAll('.texture-option').forEach(el => el.classList.remove('selected'))
-        opt.classList.add('selected')
-        this.selectedTexture = t
-        this._draw2DPreview(); this._updateStatus()
+        if (this.selectedTexture && this.selectedTexture.id === t.id) {
+          opt.classList.remove('selected')
+          this.selectedTexture = null
+        } else {
+          this.$texturesCol.querySelectorAll('.texture-option').forEach(el => el.classList.remove('selected'))
+          opt.classList.add('selected')
+          this.selectedTexture = t
+        }
+        this._draw3DPreview(); this._updateStatus()
       })
     }
   }
@@ -264,34 +275,236 @@ export class TextureMinigame {
   }
 
   /** Draw target as a textured 2D shape (large, centered). */
-  _draw2DTarget() {
-    const canvas = this.$targetCanvas
-    const ctx = canvas.getContext('2d')
-    const W = canvas.width, H = canvas.height
-    // Background
-    const grad = ctx.createLinearGradient(0, 0, 0, H)
-    grad.addColorStop(0, '#1a1a2e'); grad.addColorStop(1, '#050510')
-    ctx.fillStyle = grad
-    ctx.fillRect(0, 0, W, H)
-    this._drawTexturedShape(ctx, W, H, this.targetShape.id, this.targetTexture.id, 70)
+  _draw3DTarget() {
+    const tex = assets.getTexture(this.targetTexture.id)
+    const img = (tex.image && tex.image.width) ? tex.image : null
+    this._draw3DShape(this.$targetCanvas, this.targetShape.id, img, 70)
   }
 
-  _draw2DPreview() {
+  _draw3DPreview() {
     const canvas = this.$previewCanvas
     const ctx = canvas.getContext('2d')
     const W = canvas.width, H = canvas.height
-    const grad = ctx.createLinearGradient(0, 0, 0, H)
-    grad.addColorStop(0, '#1a1a2e'); grad.addColorStop(1, '#050510')
-    ctx.fillStyle = grad
-    ctx.fillRect(0, 0, W, H)
-    if (!this.selectedShape || !this.selectedTexture) {
+
+    // Chưa chọn gì
+    if (!this.selectedShape && !this.selectedTexture) {
+      const grad = ctx.createLinearGradient(0, 0, 0, H)
+      grad.addColorStop(0, '#1a1a2e'); grad.addColorStop(1, '#050510')
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H)
       ctx.fillStyle = '#666'
       ctx.font = '11px "JetBrains Mono", monospace'
       ctx.textAlign = 'center'
       ctx.fillText('— Chọn hình + họa tiết —', W / 2, H / 2 + 4)
       return
     }
-    this._drawTexturedShape(ctx, W, H, this.selectedShape.id, this.selectedTexture.id, 50)
+
+    // Chỉ chọn họa tiết → fill toàn canvas bằng texture
+    if (!this.selectedShape && this.selectedTexture) {
+      const tex = assets.getTexture(this.selectedTexture.id)
+      const img = (tex.image && tex.image.width) ? tex.image : null
+      if (img) ctx.drawImage(img, 0, 0, W, H)
+      else { ctx.fillStyle = '#888'; ctx.fillRect(0, 0, W, H) }
+      return
+    }
+
+    // Chỉ chọn hình dạng → 3D không texture
+    if (this.selectedShape && !this.selectedTexture) {
+      this._draw3DShape(canvas, this.selectedShape.id, null, 70)
+      return
+    }
+
+    // Chọn cả 2 → 3D có texture
+    const tex = assets.getTexture(this.selectedTexture.id)
+    const img = (tex.image && tex.image.width) ? tex.image : null
+    this._draw3DShape(canvas, this.selectedShape.id, img, 70)
+  }
+
+  _draw3DShape(canvas, shapeId, texImg, size = 70) {
+    const ctx = canvas.getContext('2d')
+    const W = canvas.width, H = canvas.height
+    const cx = W / 2, cy = H / 2
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 0, H)
+    bg.addColorStop(0, '#1a1a2e'); bg.addColorStop(1, '#050510')
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H)
+
+    ctx.save()
+
+    switch (shapeId) {
+
+      case 'sphere': {
+        // Base sphere với texture
+        ctx.beginPath()
+        ctx.arc(cx, cy, size, 0, Math.PI * 2)
+        ctx.clip()
+        if (texImg) ctx.drawImage(texImg, cx - size, cy - size, size * 2, size * 2)
+        else { ctx.fillStyle = '#888'; ctx.fillRect(0, 0, W, H) }
+        ctx.restore(); ctx.save()
+        // Shading overlay
+        const shade = ctx.createRadialGradient(cx - size * 0.3, cy - size * 0.3, size * 0.05, cx, cy, size)
+        shade.addColorStop(0, 'rgba(255,255,255,0.35)')
+        shade.addColorStop(0.5, 'rgba(0,0,0,0)')
+        shade.addColorStop(1, 'rgba(0,0,0,0.55)')
+        ctx.beginPath(); ctx.arc(cx, cy, size, 0, Math.PI * 2)
+        ctx.fillStyle = shade; ctx.fill()
+        // Specular
+        ctx.restore(); ctx.save()
+        const spec = ctx.createRadialGradient(cx - size * 0.35, cy - size * 0.35, 1, cx - size * 0.2, cy - size * 0.2, size * 0.45)
+        spec.addColorStop(0, 'rgba(255,255,255,0.7)')
+        spec.addColorStop(1, 'rgba(255,255,255,0)')
+        ctx.beginPath(); ctx.arc(cx, cy, size, 0, Math.PI * 2)
+        ctx.fillStyle = spec; ctx.fill()
+        break
+      }
+
+      case 'box': {
+        const s = size
+        // Isometric box: top / left / right faces
+        const top    = [[cx, cy - s * 1.1], [cx + s, cy - s * 0.55], [cx, cy], [cx - s, cy - s * 0.55]]
+        const left   = [[cx - s, cy - s * 0.55], [cx, cy], [cx, cy + s * 0.9], [cx - s, cy + s * 0.35]]
+        const right  = [[cx, cy], [cx + s, cy - s * 0.55], [cx + s, cy + s * 0.35], [cx, cy + s * 0.9]]
+
+        const drawFace = (pts, brightness) => {
+          ctx.save()
+          ctx.beginPath()
+          ctx.moveTo(pts[0][0], pts[0][1])
+          pts.slice(1).forEach(p => ctx.lineTo(p[0], p[1]))
+          ctx.closePath()
+          ctx.clip()
+          if (texImg) ctx.drawImage(texImg, cx - s, cy - s, s * 2, s * 2)
+          else { ctx.fillStyle = '#888'; ctx.fill() }
+          // brightness overlay
+          ctx.fillStyle = brightness > 0
+            ? `rgba(255,255,255,${brightness})`
+            : `rgba(0,0,0,${-brightness})`
+          ctx.beginPath()
+          ctx.moveTo(pts[0][0], pts[0][1])
+          pts.slice(1).forEach(p => ctx.lineTo(p[0], p[1]))
+          ctx.closePath()
+          ctx.fill()
+          ctx.restore()
+        }
+
+        drawFace(top,   0.25)   // top: bright
+        drawFace(left,  0.0)    // left: normal
+        drawFace(right, -0.3)   // right: dark
+
+        // Edges
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1
+        ;[top, left, right].forEach(pts => {
+          ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1])
+          pts.slice(1).forEach(p => ctx.lineTo(p[0], p[1]))
+          ctx.closePath(); ctx.stroke()
+        })
+        break
+      }
+
+      case 'cone': {
+        const r = size * 0.85
+        const tip = [cx, cy - size]
+        const baseY = cy + size * 0.7
+
+        // Left face
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(tip[0], tip[1])
+        ctx.lineTo(cx - r, baseY)
+        ctx.lineTo(cx, baseY)
+        ctx.closePath()
+        ctx.clip()
+        if (texImg) ctx.drawImage(texImg, cx - size, cy - size, size * 2, size * 2)
+        else { ctx.fillStyle = '#aaa'; ctx.fill() }
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fill()
+        ctx.restore()
+
+        // Right face (darker)
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(tip[0], tip[1])
+        ctx.lineTo(cx, baseY)
+        ctx.lineTo(cx + r, baseY)
+        ctx.closePath()
+        ctx.clip()
+        if (texImg) ctx.drawImage(texImg, cx - size, cy - size, size * 2, size * 2)
+        else { ctx.fillStyle = '#888'; ctx.fill() }
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill()
+        ctx.restore()
+
+        // Base ellipse shadow
+        ctx.save()
+        ctx.beginPath()
+        ctx.ellipse(cx, baseY, r, r * 0.28, 0, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill()
+        ctx.restore()
+
+        // Outline
+        ctx.save()
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(tip[0], tip[1])
+        ctx.lineTo(cx - r, baseY)
+        ctx.lineTo(cx + r, baseY)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.restore()
+        break
+      }
+
+      case 'cylinder': {
+        const r = size * 0.7
+        const top3D = cy - size
+        const bot3D = cy + size * 0.85
+        const ry = r * 0.28  // ellipse y-radius
+
+        // Body left half (light)
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(cx - r, top3D, r, bot3D - top3D)
+        ctx.clip()
+        if (texImg) ctx.drawImage(texImg, cx - r, top3D, r * 2, bot3D - top3D)
+        else { ctx.fillStyle = '#aaa'; ctx.fill() }
+        ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(cx - r, top3D, r, bot3D - top3D)
+        ctx.restore()
+
+        // Body right half (dark)
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(cx, top3D, r, bot3D - top3D)
+        ctx.clip()
+        if (texImg) ctx.drawImage(texImg, cx - r, top3D, r * 2, bot3D - top3D)
+        else { ctx.fillStyle = '#888'; ctx.fill() }
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(cx, top3D, r, bot3D - top3D)
+        ctx.restore()
+
+        // Bottom ellipse (shadow)
+        ctx.save()
+        ctx.beginPath()
+        ctx.ellipse(cx, bot3D, r, ry, 0, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill()
+        ctx.restore()
+
+        // Top ellipse (texture + highlight)
+        ctx.save()
+        ctx.beginPath()
+        ctx.ellipse(cx, top3D, r, ry, 0, 0, Math.PI * 2)
+        ctx.clip()
+        if (texImg) ctx.drawImage(texImg, cx - r, top3D - ry, r * 2, ry * 2)
+        else { ctx.fillStyle = '#bbb'; ctx.fill() }
+        ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fill()
+        ctx.restore()
+
+        // Outline
+        ctx.save()
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1
+        ctx.strokeRect(cx - r, top3D, r * 2, bot3D - top3D)
+        ctx.beginPath(); ctx.ellipse(cx, top3D, r, ry, 0, 0, Math.PI * 2); ctx.stroke()
+        ctx.restore()
+        break
+      }
+    }
+
+    ctx.restore()
   }
 
   _drawTexturedShape(ctx, W, H, shapeId, texId, size) {
