@@ -41,18 +41,18 @@ export class TransformMinigame {
 
   _buildScene(accent) {
     const sc = new THREE.Scene()
-    sc.background = new THREE.Color(0x0a0a14)
+    sc.background = new THREE.Color(0xf0f4ff)
     const ground = new THREE.Mesh(
       new THREE.CircleGeometry(8, 64),
-      new THREE.MeshStandardMaterial({ color: 0x1a1a26, roughness: 0.3, metalness: 0.4 })
+      new THREE.MeshStandardMaterial({ color: 0xdde8ff, roughness: 0.8, metalness: 0.0 })
     )
     ground.rotation.x = -Math.PI / 2
     ground.position.y = -1.6
     sc.add(ground)
-    sc.add(new THREE.AmbientLight(0xffffff, 0.5))
-    const k = new THREE.DirectionalLight(0xffffff, 1.4); k.position.set(3, 5, 4); sc.add(k)
-    const f = new THREE.DirectionalLight(0xaaccff, 0.5); f.position.set(-3, 2, -2); sc.add(f)
-    const rim = new THREE.DirectionalLight(accent, 0.6); rim.position.set(0, -2, -4); sc.add(rim)
+    sc.add(new THREE.AmbientLight(0xffffff, 3.0))
+    const k = new THREE.DirectionalLight(0xffffff, 3.5); k.position.set(3, 5, 4); sc.add(k)
+    const f = new THREE.DirectionalLight(0xaaddff, 1.5); f.position.set(-3, 2, -2); sc.add(f)
+    const rim = new THREE.DirectionalLight(accent, 1.2); rim.position.set(0, -2, -4); sc.add(rim)
     return sc
   }
 
@@ -66,7 +66,6 @@ export class TransformMinigame {
     this.playerCamera = new THREE.PerspectiveCamera(40, aspect, 0.1, 100)
     this.playerCamera.position.set(0, 0, 5)
 
-    // Player mesh — solid, manipulable
     this.playerMesh = cloneItemMesh(this.item.mesh)
     this.playerMesh.position.set(0, 0, 0)
     this.playerMesh.rotation.set(0, 0, 0)
@@ -74,44 +73,35 @@ export class TransformMinigame {
     this.playerMesh.traverse(o => {
       if (o.isMesh && o.material && 'emissiveIntensity' in o.material) o.material.emissiveIntensity = 0.05
     })
+    this.playerAxes = new THREE.AxesHelper(1.5)  // ← sau khi playerMesh tạo xong
+    this.playerMesh.add(this.playerAxes)
     this.playerScene.add(this.playerMesh)
 
-    // Target mesh in target scene
     this.targetMesh = cloneItemMesh(this.item.mesh)
     this.targetMesh.traverse(o => {
       if (o.isMesh && o.material && 'emissiveIntensity' in o.material) o.material.emissiveIntensity = 0.05
     })
     this._applyRandomTarget(this.targetMesh)
+    this.targetAxes = new THREE.AxesHelper(1.5)  // ← sau khi targetMesh tạo xong
+    this.targetMesh.add(this.targetAxes)
     this.targetScene.add(this.targetMesh)
 
-    // GHOST mesh of target overlaid in player scene (translucent green wireframe)
     this.ghostMesh = cloneItemMesh(this.item.mesh)
     this.ghostMesh.traverse(o => {
       if (o.isMesh) {
         o.material = new THREE.MeshBasicMaterial({
-          color: 0x4caf50,
-          transparent: true,
-          opacity: 0.18,
-          wireframe: false,
-          depthWrite: false
+          color: 0x4caf50, transparent: true, opacity: 0.18, wireframe: false, depthWrite: false
         })
-        // Add a wireframe overlay
       }
     })
-    // Wireframe child for clarity
     this.ghostWireframe = cloneItemMesh(this.item.mesh)
     this.ghostWireframe.traverse(o => {
       if (o.isMesh) {
         o.material = new THREE.MeshBasicMaterial({
-          color: 0x4caf50,
-          wireframe: true,
-          transparent: true,
-          opacity: 0.6,
-          depthWrite: false
+          color: 0x4caf50, wireframe: true, transparent: true, opacity: 0.6, depthWrite: false
         })
       }
     })
-    // Apply target transform to ghosts
     this.ghostMesh.position.copy(this.targetMesh.position)
     this.ghostMesh.rotation.copy(this.targetMesh.rotation)
     this.ghostMesh.scale.copy(this.targetMesh.scale)
@@ -166,17 +156,17 @@ export class TransformMinigame {
         <span class="mg-timer-text" id="tm-timer-text">45s</span>
       </div>
       <div class="mg-body">
-        <div style="display:flex; gap:14px; align-items:stretch; justify-content:center; flex-wrap:wrap;">
-          <div style="flex:1; min-width:280px; max-width:370px;">
+        <div style="display:flex; gap:14px; align-items:stretch; justify-content:center; flex-wrap:nowrap;">
+          <div style="flex:1; min-width:0;">
             <div class="mg-section-title" style="color:#FFD76A;">🎯 Mục tiêu</div>
-            <div class="mg-canvas-frame target" style="width:100%;">
+            <div style="width:100%; border:3px solid #ffb347; border-radius:12px; overflow:hidden; position:relative;">
               <span class="mg-canvas-label">TARGET</span>
               <canvas id="tm-target" width="340" height="240" style="width:100%; display:block;"></canvas>
             </div>
           </div>
-          <div style="flex:1; min-width:280px; max-width:370px;">
+          <div style="flex:1; min-width:0;">
             <div class="mg-section-title" style="color:#88ddff;">✋ Bản của bạn (có khung xanh hướng dẫn)</div>
-            <div class="mg-canvas-frame player" style="width:100%; position:relative;">
+            <div style="width:100%; border:3px solid #47c8ff; border-radius:12px; overflow:hidden; position:relative;">
               <span class="mg-canvas-label" style="color:#88ddff;">YOURS</span>
               <canvas id="tm-player" width="340" height="240" style="width:100%; display:block; cursor:grab;"></canvas>
             </div>
@@ -216,37 +206,56 @@ export class TransformMinigame {
     this._playerCtx = this.$playerCanvas.getContext('2d')
   }
 
+  // THAY _bindInteraction()
   _bindInteraction() {
     const canvas = this.$playerCanvas
     let dragging = false, lastX = 0, lastY = 0
-    canvas.addEventListener('mousedown', (e) => {
+
+    canvas.addEventListener('mousedown', e => {
       dragging = true; lastX = e.clientX; lastY = e.clientY
       canvas.style.cursor = 'grabbing'
     })
     window.addEventListener('mouseup', () => { dragging = false; canvas.style.cursor = 'grab' })
-    canvas.addEventListener('mousemove', (e) => {
+
+    canvas.addEventListener('mousemove', e => {
       if (!dragging) return
       const dx = e.clientX - lastX, dy = e.clientY - lastY
       lastX = e.clientX; lastY = e.clientY
+
       if (e.shiftKey) {
         this.playerMesh.position.x += dx * 0.005
         this.playerMesh.position.y -= dy * 0.005
       } else {
-        this.playerMesh.rotation.y += dx * 0.012
-        this.playerMesh.rotation.x += dy * 0.012
+        const speed = 0.006
+        const qX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dx * speed)
+        const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), dy * speed)
+        this.playerMesh.quaternion.premultiply(qX).premultiply(qY)
       }
     })
-    canvas.addEventListener('wheel', (e) => {
+
+    canvas.addEventListener('wheel', e => {
       e.preventDefault()
       const factor = e.deltaY > 0 ? 0.95 : 1.05
       this.playerMesh.scale.multiplyScalar(factor)
       this.playerMesh.scale.clampScalar(0.2, 3.0)
     }, { passive: false })
+
+    this._keyHandler = (e) => {
+      const step = 0.05
+      const q = new THREE.Quaternion()
+      if (e.key === 'ArrowLeft')  q.setFromAxisAngle(new THREE.Vector3(0, 0, 1),  step)
+      if (e.key === 'ArrowRight') q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -step)
+      if (q.w !== 1) {
+        e.preventDefault()
+        this.playerMesh.quaternion.premultiply(q)
+      }
+    }
+    window.addEventListener('keydown', this._keyHandler)
   }
 
   _reset() {
     this.playerMesh.position.set(0, 0, 0)
-    this.playerMesh.rotation.set(0, 0, 0)
+    this.playerMesh.quaternion.set(0, 0, 0, 1)
     this.playerMesh.scale.set(1, 1, 1)
   }
 
@@ -260,22 +269,15 @@ export class TransformMinigame {
   _matchScores() {
     const a = this.playerMesh, b = this.targetData
     const posDist = a.position.distanceTo(b.position)
-    const rotDiff = Math.max(
-      Math.abs(this._wrap(a.rotation.x - b.rotation.x)),
-      Math.abs(this._wrap(a.rotation.y - b.rotation.y)),
-      Math.abs(this._wrap(a.rotation.z - b.rotation.z))
-    )
+    const targetQuat = new THREE.Quaternion().setFromEuler(b.rotation)
+    const dot = Math.abs(a.quaternion.dot(targetQuat))  // 1 = khớp hoàn toàn
     const scaleDist = a.scale.distanceTo(b.scale)
-    return { posDist, rotDiff, scaleDist }
+    return { posDist, dot, scaleDist }
   }
 
   _check() {
-    const { posDist, rotDiff, scaleDist } = this._matchScores()
-    // Generous tolerances:
-    const POS_OK = 0.6
-    const ROT_OK = 0.55
-    const SCALE_OK = 0.4
-    if (posDist < POS_OK && rotDiff < ROT_OK && scaleDist < SCALE_OK) {
+    const { posDist, dot, scaleDist } = this._matchScores()
+    if (posDist < 0.6 && dot > 0.92 && scaleDist < 0.4) {
       this._finish(true)
     } else {
       this.hudUI.flashError(this.panel)
@@ -315,15 +317,17 @@ export class TransformMinigame {
   /** Update the live readout below the canvases. */
   _updateReadout() {
     if (!this.$pos) return
-    const { posDist, rotDiff, scaleDist } = this._matchScores()
+    const { posDist, dot, scaleDist } = this._matchScores()
     const colorize = (val, threshold) => {
-      if (val < threshold * 0.5) return '#4caf50'   // very close — green
-      if (val < threshold) return '#FFD76A'         // close — gold
-      return '#ff8a8a'                              // far — red
+      if (val < threshold * 0.5) return '#4caf50'
+      if (val < threshold) return '#FFD76A'
+      return '#ff8a8a'
     }
-    const a = this.playerMesh
+    const rotErr = (Math.acos(Math.min(dot, 1)) * 180 / Math.PI).toFixed(1)
+    const rotThreshold = (Math.acos(0.92) * 180 / Math.PI).toFixed(1)
+    const dotColor = dot > 0.96 ? '#4caf50' : dot > 0.92 ? '#FFD76A' : '#ff8a8a'
     this.$pos.innerHTML = `<span style="color:${colorize(posDist, 0.6)}">${posDist.toFixed(2)}</span> / 0.6`
-    this.$rot.innerHTML = `<span style="color:${colorize(rotDiff, 0.55)}">${rotDiff.toFixed(2)}</span> / 0.55`
+    this.$rot.innerHTML = `<span style="color:${dotColor}">${rotErr}°</span> / ${rotThreshold}°`
     this.$scl.innerHTML = `<span style="color:${colorize(scaleDist, 0.4)}">${scaleDist.toFixed(2)}</span> / 0.4`
   }
 
