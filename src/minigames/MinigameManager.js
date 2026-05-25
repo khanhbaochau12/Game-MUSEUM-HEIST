@@ -75,6 +75,48 @@ export class MinigameManager {
     }
     if (type === 'transform') this._current = new TransformMinigame(opts)
     else this._current = new TextureMinigame(opts)
+
+    // Always-on X button — exit minigame and forfeit the heist.
+    this._addForfeitButton()
+  }
+
+  _addForfeitButton() {
+    const overlay = this.ui.container
+    const btn = document.createElement('button')
+    btn.id = 'mg-forfeit'
+    btn.type = 'button'
+    btn.innerHTML = '✕'
+    btn.title = 'Bỏ cuộc — thoát minigame (sẽ bị bắt)'
+    btn.style.cssText = `
+      position: absolute; top: 18px; right: 22px; z-index: 50;
+      width: 42px; height: 42px; border-radius: 50%;
+      border: 1px solid rgba(255,90,90,0.55);
+      background: linear-gradient(180deg, rgba(80,18,18,0.92), rgba(40,8,8,0.92));
+      color: #ffb0b0; font-size: 20px; font-weight: 700; line-height: 1;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer; backdrop-filter: blur(6px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 18px rgba(255,80,80,0.18);
+      transition: transform 0.12s, box-shadow 0.15s, color 0.15s, background 0.15s;
+      pointer-events: auto;
+    `
+    btn.onmouseenter = () => {
+      btn.style.color = '#fff'
+      btn.style.transform = 'scale(1.08)'
+      btn.style.boxShadow = '0 4px 22px rgba(0,0,0,0.6), 0 0 28px rgba(255,80,80,0.55)'
+    }
+    btn.onmouseleave = () => {
+      btn.style.color = '#ffb0b0'
+      btn.style.transform = 'scale(1)'
+      btn.style.boxShadow = '0 4px 16px rgba(0,0,0,0.6), 0 0 18px rgba(255,80,80,0.18)'
+    }
+    btn.onclick = () => this._forfeit()
+    overlay.appendChild(btn)
+  }
+
+  _forfeit() {
+    if (!this.isActive) return
+    if (this._current) { this._current.dispose(); this._current = null }
+    this._endSequence(false)
   }
 
   _flashSuccess() {

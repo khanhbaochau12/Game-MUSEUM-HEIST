@@ -128,12 +128,15 @@ export class Exterior {
     const brick = assets.getTexture('brick')
     brick.repeat.set(20, 1)
     const m = new THREE.MeshStandardMaterial({ map: brick, roughness: 0.85 })
-    const h = 3, S = 90
+    const h = 3, S = 100, t = 1
+    // Walls hugging the edge of the 200x200 grass plane.
+    // Wall thickness (t=1) is positioned just inside the grass edge so its
+    // outer face sits flush at ±S.
     const positions = [
-      { p: [0, h / 2, S], s: [S * 2, h, 1] },
-      { p: [0, h / 2, -S - 30], s: [S * 2, h, 1] },
-      { p: [S, h / 2, 0], s: [1, h, S * 2] },
-      { p: [-S, h / 2, 0], s: [1, h, S * 2] }
+      { p: [0, h / 2,  S - t / 2], s: [S * 2, h, t] },   // north
+      { p: [0, h / 2, -S + t / 2], s: [S * 2, h, t] },   // south
+      { p: [ S - t / 2, h / 2, 0], s: [t, h, S * 2] },   // east
+      { p: [-S + t / 2, h / 2, 0], s: [t, h, S * 2] }    // west
     ]
     for (const w of positions) {
       const x = new THREE.Mesh(new THREE.BoxGeometry(...w.s), m)
