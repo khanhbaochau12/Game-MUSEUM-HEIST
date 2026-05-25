@@ -36,12 +36,13 @@ export class ThirdPersonCamera {
     // Player faces yaw direction
     this.player.object.rotation.y = this.yaw
 
-    // Spherical orbit position
+    // Spherical orbit position — camera sits BEHIND the player (opposite of
+    // forward direction). Forward at yaw=0 is (0,0,-1), so behind is (0,0,+1).
     const cosP = Math.cos(this.pitch)
     const offset = new THREE.Vector3(
-      -Math.sin(this.yaw) * cosP,
+      Math.sin(this.yaw) * cosP,
       Math.sin(-this.pitch) + 0.5,
-      -Math.cos(this.yaw) * cosP
+      Math.cos(this.yaw) * cosP
     ).multiplyScalar(this.distance)
 
     const focus = new THREE.Vector3(

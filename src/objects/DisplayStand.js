@@ -91,7 +91,9 @@ export class DisplayStand {
     plaque.castShadow = true
     this.group.add(plaque)
 
-    this.itemSlot = new THREE.Vector3(this.position.x, this.position.y + this.height + 0.7, this.position.z)
+    // Lift items so their bottom edge clearly clears the plate (avoids z-fight
+    // and lets the polygon base of cones/cylinders read sharply).
+    this.itemSlot = new THREE.Vector3(this.position.x, this.position.y + this.height + 0.85, this.position.z)
   }
 
   setItem(item) {
