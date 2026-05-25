@@ -116,7 +116,7 @@ export class Game {
     ]
     const hues = [0.05, 0.55, 0.75, 0.15]
     for (let i = 0; i < waypointSets.length; i++) {
-      const npc = new Visitor(waypointSets[i], hues[i])
+      const npc = new Visitor(waypointSets[i], hues[i], this.museum.colliders)
       this.npcs.push(npc)
       this.scene.add(npc.group)
     }
@@ -164,7 +164,7 @@ export class Game {
     this.player.update(delta, this.museum.colliders)
     this.museum.update(elapsed, delta)
     for (const item of this.museum.exhibitItems) item.update(delta)
-    for (const npc of this.npcs) npc.update(delta)
+    for (const npc of this.npcs) npc.update(delta, this.museum.colliders)
     this.lights.update(elapsed)
 
     const stand = this.player.canInteract(this.museum.displayStands)
