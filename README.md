@@ -34,24 +34,6 @@ Mở trình duyệt tại `http://localhost:3000`.
 4. Hết giờ trong bất kỳ minigame nào → bị bắt.
 5. Sau khi trộm được ít nhất một món, đi ra cửa để **thoát thành công**.
 
-## Cấu trúc
-
-src/
-├── core/         # Game.js, AssetLoader, InputManager
-├── world/        # Museum, Exterior, Interior, Fountain
-├── objects/      # primitives, ExhibitItem, DisplayStand, TreeGroup
-├── player/       # Player + FirstPersonCamera + ThirdPersonCamera
-├── npc/          # Visitor (NPC tuần tra)
-├── lighting/     # LightingSystem (chandeliers, spotlights, downlights)
-├── minigames/    # MinigameManager + Transform + Texture
-├── ui/           # HUD, MinigameUI, CameraToolbar
-└── utils/        # MathUtils, CollisionUtils
-
-## Asset
-
-Game tự sinh procedural texture (marble, wood, brick, grass, gold, floral, ancient, modern...) nên không cần file ngoài.
-Nếu thư mục `public/textures/` có sẵn các file `.jpg` cùng tên, AssetLoader sẽ ưu tiên dùng chúng.
-
 ## Build production
 
 ```bash
